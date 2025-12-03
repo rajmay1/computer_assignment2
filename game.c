@@ -1,90 +1,146 @@
+//Enobi Modifies
+
 #include <stdio.h>
 #include <conio.h>
 #include <windows.h>
 #include <stdlib.h>
 #include <time.h>
-/*for bg sound*/
-#include <mmsystem.h>
 
-/*to remove flicker*/
-void clear_screen_fast() {
-    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-    COORD pos = {0, 0};
-    SetConsoleCursorPosition(h, pos);
+void setColor(int color) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
+
+void drawBorder() {
+    setColor(11);
+    printf("|-----------|\n");  
+    setColor(7);
 }
 
 int main() {
-	system("color 4F");
-	PlaySound(TEXT("bg.wav"), NULL, SND_ASYNC | SND_LOOP);
     srand(time(0));
 
-    int x = 1;              // player position (0 to 2)
-    int step = 0;           // obstacle vertical movement
-    int obstaclePos = rand() % 3;   // 0,1,2 lane
+    int x = 1;              
+    int step = 0;           
+    int obstaclePos = rand() % 3;
+    int score = 0;
+    int lives = 3;
+    int highScore = 0;
+    int speed = 150;
+
+    FILE *f = fopen("highscore.txt", "r");
+    if (f != NULL) {
+        fscanf(f, "%d", &highScore);
+        fclose(f);
+    }
+
+START:
+    x = 1;
+    step = 0;
+    obstaclePos = rand() % 3;
+    score = 0;
+    lives = 3;
+    speed = 150;
 
     while (1) {
-
-        // ---- INPUT ----
         if (_kbhit()) {
-            char ch = getch();
+            int ch = getch();
 
-            if (ch == 75 && x > 0)        // LEFT arrow
-                x--;
+            if (ch == 'p' || ch == 'P') {
+                printf("\nGame Paused. Press any key to continue...");
+                getch();
+            }
 
-            if (ch == 77 && x < 2)        // RIGHT arrow
-                x++;
+            if (ch == 'q' || ch == 'Q') {
+                printf("\nQuitting Game...\n");
+                return 0;
+            }
+
+            if (ch == 224) {
+                ch = getch();
+                if (ch == 75 && x > 0) x--;
+                if (ch == 77 && x < 2) x++;
+            }
         }
 
-        // ---- DRAW ----
-		// system("cls");
-		clear_screen_fast();
-        printf("|--- --- ---|\n");
+        system("cls");
+        drawBorder();
 
+        // FROM HERE GAME AREA BEGINS
         for (int i = 0; i < 10; i++) {
             if (i == step) {
-
-                if (obstaclePos == 0)
-                    printf("| %c        |\n", 1);
-
-                else if (obstaclePos == 1)
-                    printf("|     %c    |\n", 1);
-
-                else if (obstaclePos == 2)
-                    printf("|        %c |\n", 1);
-
+                setColor(12);
+                if (obstaclePos == 0)      printf("| @         |\n");
+                else if (obstaclePos == 1) printf("|     @     |\n");
+                else                       printf("|         @ |\n");
+                setColor(7);
             } else {
                 printf("|           |\n");
             }
         }
 
-        // ---- PLAYER ----
-        if (x == 0)
-            printf("| %c         |\n", 6);
-        else if (x == 1)
-            printf("|     %c     |\n", 6);
-        else if (x == 2)
-            printf("|        %c  |\n", 6);
+        // PLAYER FIXED alignment(no extra spaces)
+        setColor(10);
+        if (x == 0)      printf("| ^         |\n");
+        else if (x == 1) printf("|     ^     |\n");
+        else             printf("|         ^ |\n");
+        setColor(7);
 
-        // ---- COLLISION ----
-        if (step == 10 && x == obstaclePos) {
-        	PlaySound(NULL, NULL, 0);  // stop background
-			PlaySound(TEXT("impact.wav"), NULL, SND_ASYNC);
-        	Sleep(2500);
-            printf("\nGAME OVER!\n");
-            break;
-        }
+        printf("Score: %d   Lives: %d   High Score: %d\n", score, lives, highScore);
+        printf("[P] Pause   [Q] Quit\n");
 
-        Sleep(120);
+        if (lives == 0) break;
 
-        // Move obstacle down
+        Sleep(speed);
         step++;
 
-        // Reset when reaches bottom
-        if (step > 10) {
+        if (step >= 10) {
+            if (x == obstaclePos) {
+                lives--;
+                Beep(400, 150);
+
+                setColor(12);
+                printf("\n!! You hit an obstacle! Lives left: %d\n", lives);
+                setColor(7);
+
+                Sleep(500);
+            } else {
+                score++;
+                Beep(700, 50);
+
+                if (score % 5 == 0 && speed > 60)
+                    speed -= 10;
+            }
+
             step = 0;
-            obstaclePos = rand() % 3; // new lane
+            obstaclePos = rand() % 3;
         }
     }
 
-    return 0;
+    system("cls");
+    setColor(12);
+    printf("\n=== GAME OVER ===\n");
+    setColor(7);
+
+    if (score > highScore) {
+        FILE *fw = fopen("highscore.txt", "w");
+        if (fw != NULL) {
+            fprintf(fw, "%d", score);
+            fclose(fw);
+        }
+        printf("\n*** New High Score! ***\n");
+        highScore = score;
+    }
+
+    printf("\nFinal Score: %d\n", score);
+    printf("High Score: %d\n", highScore);
+
+    printf("\nPress R to Restart or Q to Quit: ");
+    char ch = getch();
+
+    if (ch == 'r' || ch == 'R')
+        goto START;
+    else
+        return 0;
 }
+
+
